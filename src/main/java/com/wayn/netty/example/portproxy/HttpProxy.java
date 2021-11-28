@@ -1,4 +1,4 @@
-package com.wayn.netty.example.tcpPortForward;
+package com.wayn.netty.example.portproxy;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelOption;

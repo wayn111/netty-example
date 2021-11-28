@@ -1,4 +1,4 @@
-package com.wayn.netty;
+package com.wayn.netty.example.portproxy;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;

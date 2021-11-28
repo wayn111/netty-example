@@ -1,4 +1,4 @@
-package com.wayn.netty;
+package com.wayn.netty.example.http;
 
 import lombok.extern.slf4j.Slf4j;
 
