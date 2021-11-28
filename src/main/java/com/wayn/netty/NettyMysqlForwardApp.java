@@ -18,8 +18,6 @@ public class NettyMysqlForwardApp {
 
 
         // 服务端启动，监听3307端口，转发到3306端口
-        final Channel[] outboundChannel = {null};
-
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         NioEventLoopGroup boss = new NioEventLoopGroup();
         NioEventLoopGroup worker = new NioEventLoopGroup();
@@ -29,6 +27,7 @@ public class NettyMysqlForwardApp {
                 .handler(new LoggingHandler(LogLevel.INFO))
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     protected void initChannel(NioSocketChannel ch) {
+                        final Channel[] outboundChannel = new Channel[1];
                         ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO), new ChannelInboundHandlerAdapter() {
                             @Override
                             public void channelActive(ChannelHandlerContext clientCtx) {
@@ -45,7 +44,12 @@ public class NettyMysqlForwardApp {
                                             }
 
                                             @Override
-                                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                                            public void channelInactive(ChannelHandlerContext ctx) {
+                                                closeOnFlush(inboundChannel);
+                                            }
+
+                                            @Override
+                                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                                 inboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
                                                     @Override
                                                     public void operationComplete(ChannelFuture future) throws Exception {
@@ -59,21 +63,14 @@ public class NettyMysqlForwardApp {
                                             }
 
                                             @Override
-                                            public void channelInactive(ChannelHandlerContext ctx) {
-                                                if (inboundChannel != null) {
-                                                    closeOnFlush(inboundChannel);
-                                                }
-                                            }
-
-                                            @Override
-                                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
                                                 log.error(cause.getMessage(), cause);
                                                 closeOnFlush(ctx.channel());
                                             }
                                         }).option(ChannelOption.AUTO_READ, false);
 
-                                // Channel outboundChannel = bootstrap.connect("localhost", 28079).channel();
-                                ChannelFuture connect = bootstrap.connect("waynmysql.mysql.rds.aliyuncs.com", 3306);
+                                ChannelFuture connect = bootstrap.connect("localhost", 28079);
+                                // ChannelFuture connect = bootstrap.connect("waynmysql.mysql.rds.aliyuncs.com", 3306);
                                 outboundChannel[0] = connect.channel();
                                 connect.addListener(future -> {
                                     if (future.isSuccess()) {
@@ -85,7 +82,7 @@ public class NettyMysqlForwardApp {
                             }
 
                             @Override
-                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 if (outboundChannel[0].isActive()) {
                                     outboundChannel[0].writeAndFlush(msg).addListener(new ChannelFutureListener() {
                                         @Override
@@ -109,7 +106,7 @@ public class NettyMysqlForwardApp {
 
                             @Override
                             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                                log.error(cause.getMessage(), cause);
+                                cause.printStackTrace();
                                 closeOnFlush(ctx.channel());
                             }
                         });
