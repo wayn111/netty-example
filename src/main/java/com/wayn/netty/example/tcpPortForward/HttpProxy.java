@@ -20,7 +20,7 @@ public class HttpProxy {
                     .group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new HexDumpProxyInitializer("localhost", 28079))
+                    .childHandler(new HexDumpProxyInitializer("waynmysql.mysql.rds.aliyuncs.com", 3306))
                     .childOption(ChannelOption.AUTO_READ, false)
                     .bind(localPort).addListener(future -> {
                         log.info("server start up on:{}", localPort);

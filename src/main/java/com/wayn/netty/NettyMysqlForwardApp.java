@@ -2,81 +2,130 @@ package com.wayn.netty;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class NettyMysqlForwardApp {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
 
         // 服务端启动，监听3307端口，转发到3306端口
-        ChannelHandlerContext[] ctxArr = {null};
+        final Channel[] outboundChannel = {null};
+
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         NioEventLoopGroup boss = new NioEventLoopGroup();
         NioEventLoopGroup worker = new NioEventLoopGroup();
-        serverBootstrap.group(boss, worker);
-        serverBootstrap.channel(NioServerSocketChannel.class);
-        serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
-            protected void initChannel(NioSocketChannel ch) {
-                ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void channelActive(ChannelHandlerContext clientCtx) {
-                        // 3306第一次建立连接时，启动3307端口连接
-                        Bootstrap bootstrap = new Bootstrap();
-                        NioEventLoopGroup group = new NioEventLoopGroup();
-                        bootstrap.group(group)
-                                .channel(NioSocketChannel.class)
-                                .handler(new ChannelInitializer<Channel>() {
-                                    @Override
-                                    protected void initChannel(Channel ch) {
-                                        ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+        serverBootstrap
+                .group(boss, worker)
+                .channel(NioServerSocketChannel.class)
+                .handler(new LoggingHandler(LogLevel.INFO))
+                .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                    protected void initChannel(NioSocketChannel ch) {
+                        ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO), new ChannelInboundHandlerAdapter() {
+                            @Override
+                            public void channelActive(ChannelHandlerContext clientCtx) {
+                                final Channel inboundChannel = clientCtx.channel();
+                                // 3306第一次建立连接时，启动3307端口连接
+                                Bootstrap bootstrap = new Bootstrap();
+                                bootstrap
+                                        .group(new NioEventLoopGroup())
+                                        .channel(NioSocketChannel.class)
+                                        .handler(new ChannelInboundHandlerAdapter() {
                                             @Override
                                             public void channelActive(ChannelHandlerContext ctx) {
-                                                if (ctxArr[0] == null) {
-                                                    ctxArr[0] = ctx;
-                                                }
+                                                ctx.read();
                                             }
 
                                             @Override
                                             public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                                                ByteBuf byteBuf = (ByteBuf) msg;
-                                                byte[] bytes = new byte[byteBuf.readableBytes()];
-                                                int index = byteBuf.readerIndex();
-                                                byteBuf.getBytes(index, bytes);
-                                                System.out.println(new String(bytes));
-                                                clientCtx.writeAndFlush(byteBuf);
+                                                inboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
+                                                    @Override
+                                                    public void operationComplete(ChannelFuture future) throws Exception {
+                                                        if (future.isSuccess()) {
+                                                            ctx.channel().read();
+                                                        } else {
+                                                            future.channel().closeFuture();
+                                                        }
+                                                    }
+                                                });
                                             }
-                                        });
 
+                                            @Override
+                                            public void channelInactive(ChannelHandlerContext ctx) {
+                                                if (inboundChannel != null) {
+                                                    closeOnFlush(inboundChannel);
+                                                }
+                                            }
 
+                                            @Override
+                                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                                log.error(cause.getMessage(), cause);
+                                                closeOnFlush(ctx.channel());
+                                            }
+                                        }).option(ChannelOption.AUTO_READ, false);
+
+                                // Channel outboundChannel = bootstrap.connect("localhost", 28079).channel();
+                                ChannelFuture connect = bootstrap.connect("waynmysql.mysql.rds.aliyuncs.com", 3306);
+                                outboundChannel[0] = connect.channel();
+                                connect.addListener(future -> {
+                                    if (future.isSuccess()) {
+                                        inboundChannel.read();
+                                    } else {
+                                        inboundChannel.close();
                                     }
                                 });
-                        Channel outboundChannel = bootstrap.connect("localhost", 28079).channel();
-                        // bootstrap.connect("waynmysql.mysql.rds.aliyuncs.com", 3306).channel();
-                    }
+                            }
 
-                    @Override
-                    public void channelRead(ChannelHandlerContext clientCtx, Object msg) {
-                        ByteBuf byteBuf = (ByteBuf) msg;
-                        byte[] bytes = new byte[byteBuf.readableBytes()];
-                        int index = byteBuf.readerIndex();
-                        byteBuf.getBytes(index, bytes);
-                        System.out.println(new String(bytes));
-                        ctxArr[0].writeAndFlush(byteBuf);
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                                if (outboundChannel[0].isActive()) {
+                                    outboundChannel[0].writeAndFlush(msg).addListener(new ChannelFutureListener() {
+                                        @Override
+                                        public void operationComplete(ChannelFuture future) throws Exception {
+                                            if (future.isSuccess()) {
+                                                ctx.channel().read();
+                                            } else {
+                                                future.channel().close();
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void channelInactive(ChannelHandlerContext ctx) {
+                                if (outboundChannel[0] != null) {
+                                    closeOnFlush(outboundChannel[0]);
+                                }
+                            }
+
+                            @Override
+                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                log.error(cause.getMessage(), cause);
+                                closeOnFlush(ctx.channel());
+                            }
+                        });
                     }
-                });
-            }
-        });
-        serverBootstrap.bind(3307);
-        log.info("server start up on 3307");
+                }).childOption(ChannelOption.AUTO_READ, false);
+
+        int localPort = 3307;
+        serverBootstrap.bind(localPort).addListener(future -> {
+            log.info("server start up on:{}", localPort);
+        }).sync().channel().closeFuture().sync();
     }
+
+    static void closeOnFlush(Channel ch) {
+        if (ch.isActive()) {
+            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
 }
