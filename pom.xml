@@ -4,11 +4,11 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.wayn.nettyhttp</groupId>
-  <artifactId>netty-http</artifactId>
+  <groupId>com.wayn.nettyproject</groupId>
+  <artifactId>netty-project</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>netty-http</name>
+  <name>netty-project</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
   <properties>
@@ -34,23 +34,24 @@
 
     <!--##### log4j2 start  ####-->
     <!--log4j2核心包-->
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
-      <version>2.14.1</version>
+      <version>2.15.0</version>
     </dependency>
     <!--用于与slf4j保持桥接（里面自动依赖了slf4j-api）-->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
-      <version>2.14.1</version>
+      <version>2.15.0</version>
     </dependency>
 
     <!-- 异步日志，需要加入disruptor依赖 -->
     <dependency>
       <groupId>com.lmax</groupId>
       <artifactId>disruptor</artifactId>
-      <version>3.4.2</version>
+      <version>3.4.4</version>
     </dependency>
     <!--##### log4j2 end  ####-->
 
