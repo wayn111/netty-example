@@ -24,7 +24,8 @@ public class Inbound01 extends ChannelInboundHandlerAdapter {
             });
             return;
         }
-        ctx.fireChannelRead(Unpooled.buffer().writeBytes("a".getBytes(StandardCharsets.UTF_8)));
+        ctx.writeAndFlush(Unpooled.buffer().writeBytes("a".getBytes(StandardCharsets.UTF_8)));
+        // ctx.fireChannelRead(Unpooled.buffer().writeBytes("a".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Override

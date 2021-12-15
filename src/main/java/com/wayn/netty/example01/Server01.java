@@ -2,14 +2,17 @@ package com.wayn.netty.example01;
 
 import cn.hutool.system.SystemUtil;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
@@ -27,17 +30,19 @@ public class Server01 {
                 serverBootstrap.channel(EpollServerSocketChannel.class);
             }
             serverBootstrap.group(bossGroup, workGroup);
-            serverBootstrap.handler(new LoggingHandler(LogLevel.INFO));
+            serverBootstrap.handler(new LoggingHandler(LogLevel.DEBUG));
             serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
 
                 @Override
                 protected void initChannel(NioSocketChannel ch) {
-                    ch.pipeline().addLast(new LineBasedFrameDecoder(1024));
+                    ByteBuf delimiter = Unpooled.copiedBuffer("#".getBytes());
+                    ch.pipeline().addLast(new DelimiterBasedFrameDecoder(1024, delimiter));
                     ch.pipeline().addLast(new StringDecoder());
                     ch.pipeline().addLast(new Inbound01());
-                    ch.pipeline().addLast(new Outbound02());
-                    ch.pipeline().addLast(new Outbound01());
-                    ch.pipeline().addLast(new Inbound02());
+                    // ch.pipeline().addLast(new Inbound02());
+                    // ch.pipeline().addLast(new Outbound01());
+                    // ch.pipeline().addLast(new Outbound02());
+                    ch.pipeline().addLast(new StringEncoder());
                 }
 
             });

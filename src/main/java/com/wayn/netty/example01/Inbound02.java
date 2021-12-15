@@ -11,7 +11,7 @@ public class Inbound02 extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         System.out.println("Inbound02 接收到消息");
         ByteBufUtil.writeUtf8(byteBuf, "b");
-        ctx.write(msg);
+        ctx.writeAndFlush(msg);
     }
 
     @Override

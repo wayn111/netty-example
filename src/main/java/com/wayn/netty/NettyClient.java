@@ -26,7 +26,7 @@ public class NettyClient {
                             @Override
                             public void channelActive(ChannelHandlerContext ctx) {
                                 ByteBuf buffer = ctx.alloc().buffer();
-                                buffer.writeBytes((new Date() + ": hello world!").getBytes(StandardCharsets.UTF_8));
+                                buffer.writeBytes((new Date() + ": hello world!#").getBytes(StandardCharsets.UTF_8));
                                 ctx.writeAndFlush(buffer);
                             }
 
