@@ -1,4 +1,4 @@
-package com.wayn.netty.example.portproxy;
+package com.wayn.netty.example02.mysqlforward;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -69,7 +69,7 @@ public class NettyMysqlForwardApp {
                                             }
                                         }).option(ChannelOption.AUTO_READ, false);
 
-                                ChannelFuture connect = bootstrap.connect("localhost", 28079);
+                                ChannelFuture connect = bootstrap.connect("localhost", 84);
                                 // ChannelFuture connect = bootstrap.connect("waynmysql.mysql.rds.aliyuncs.com", 3306);
                                 outboundChannel[0] = connect.channel();
                                 connect.addListener(future -> {

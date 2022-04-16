@@ -1,4 +1,4 @@
-package com.wayn.netty.example.portproxy;
+package com.wayn.netty.example02.portproxy;
 
 import io.netty.channel.*;
 import lombok.extern.slf4j.Slf4j;
