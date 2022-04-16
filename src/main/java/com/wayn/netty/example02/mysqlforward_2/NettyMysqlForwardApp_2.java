@@ -1,6 +1,6 @@
-package com.wayn.netty.example02.mysqlforward_1;
+package com.wayn.netty.example02.mysqlforward_2;
 
-import com.wayn.netty.example02.mysqlforward_1.handle.LocalChannelHandler;
+import com.wayn.netty.example02.mysqlforward_2.handle.LocalChannelHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -14,8 +14,12 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * mysql代理通过在建立代理连接设置proxyChannel = bootstrap.connect("121.89.238.61", 80).sync().channel();<br>
+ * 同步阻塞保证channelRead方法中proxyChannel已经建立连接成功
+ */
 @Slf4j
-public class NettyMysqlForwardApp {
+public class NettyMysqlForwardApp_2 {
 
     public static void main(String[] args) throws InterruptedException {
         // 服务端启动，监听3307端口，转发到3306端口
@@ -27,7 +31,6 @@ public class NettyMysqlForwardApp {
                 .channel(NioServerSocketChannel.class)
                 .handler(new LoggingHandler(LogLevel.INFO))
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
-                .childOption(ChannelOption.AUTO_READ, false)
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     protected void initChannel(NioSocketChannel ch) {
                         LocalChannelHandler localChannelHandler = new LocalChannelHandler();
@@ -38,8 +41,10 @@ public class NettyMysqlForwardApp {
 
         int localPort = 9090;
         serverBootstrap.bind(localPort).addListener(future -> {
-            log.info("server start up on:{}", localPort);
-        }).sync().channel().closeFuture().sync();
+            if (future.isSuccess()) {
+                log.info("server start up on:{}", localPort);
+            }
+        });
     }
 
     public static void closeOnFlush(Channel ch) {

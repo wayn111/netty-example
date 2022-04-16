@@ -1,6 +1,6 @@
 package com.wayn.netty.example02.mysqlforward_1.handle;
 
-import com.wayn.netty.example02.mysqlforward_1.NettyMysqlForwardApp;
+import com.wayn.netty.example02.mysqlforward_1.NettyMysqlForwardApp_1;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -49,14 +49,15 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
+        ctx.close();
         if (proxyChannel != null) {
-            NettyMysqlForwardApp.closeOnFlush(proxyChannel);
+            NettyMysqlForwardApp_1.closeOnFlush(proxyChannel);
         }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
-        NettyMysqlForwardApp.closeOnFlush(ctx.channel());
+        NettyMysqlForwardApp_1.closeOnFlush(ctx.channel());
     }
 }
