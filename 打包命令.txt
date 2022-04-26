@@ -1,0 +1,2 @@
+1. 打包命令
+mvn package assembly:single
