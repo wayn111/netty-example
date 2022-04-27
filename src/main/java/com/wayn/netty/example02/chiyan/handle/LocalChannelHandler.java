@@ -49,16 +49,21 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
         String req = new String(bytes, StandardCharsets.UTF_8);
-        // System.out.println(req);
         String[] split = req.split("\r\n");
         if (split[0].contains("/windowsCommon")) {
             if (proxyChannel.isActive()) {
-                proxyChannel.writeAndFlush(byteBuf);
+                req = req.replace("localhost:82", "api.chiyanjiasu.com");
+                System.out.println(req);
+                log.info("channelRead " + proxyChannel);
+                ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
+                if (proxyChannel.isActive()) {
+                    proxyChannel.writeAndFlush(byteBuf1);
+                }
             }
+            byteBuf.release();
             return;
         }
-        req = req.replace("api.chiyanjiasu.com", "api.pre.chiyanjiasu.com");
-        System.out.println(req);
+        req = req.replace("localhost:82", "api.pre.chiyanjiasu.com");
         log.info("channelRead " + proxyChannel);
         ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
         if (proxyChannel.isActive()) {

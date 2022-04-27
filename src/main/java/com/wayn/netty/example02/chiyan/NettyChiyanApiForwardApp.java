@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 public class NettyChiyanApiForwardApp {
 
     public static void main(String[] args) throws InterruptedException {
+        // DnsCacheManipulator.setDnsCache("api.chiyanjiasu.com", "127.0.0.1");
         // 服务端启动，监听3307端口，转发到3306端口
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         NioEventLoopGroup boss = new NioEventLoopGroup();
@@ -39,7 +40,7 @@ public class NettyChiyanApiForwardApp {
                     }
                 });
 
-        int localPort = 80;
+        int localPort = 82;
         serverBootstrap.bind(localPort).addListener(future -> {
             if (future.isSuccess()) {
                 log.info("server start up on:{}", localPort);
