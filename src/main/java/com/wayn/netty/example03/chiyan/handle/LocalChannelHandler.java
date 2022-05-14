@@ -1,7 +1,8 @@
-package com.wayn.netty.example02.chiyan.handle;
+package com.wayn.netty.example03.chiyan.handle;
 
 import cn.hutool.core.util.StrUtil;
-import com.wayn.netty.example02.chiyan.NettyChiyanApiForwardApp;
+import com.wayn.netty.example03.chiyan.NettyChiyanApiForwardApp;
+import com.wayn.netty.example03.chiyan.config.ChiyanConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -20,6 +21,12 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
 
+    private ChiyanConfig chiyanConfig;
+
+    public LocalChannelHandler(ChiyanConfig chiyanConfig) {
+        this.chiyanConfig = chiyanConfig;
+    }
+
     private Channel proxyChannel;
 
     @Override
@@ -37,10 +44,7 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
                         ch.pipeline().addLast(proxyChannelHandler);
                     }
                 });
-        log.info("connect " + proxyChannel);
-        proxyChannel = bootstrap.connect("119.97.143.64", 80).sync().channel();
-        // proxyChannel = bootstrap.connect("localhost", 84).sync().channel();
-        log.info("connect " + proxyChannel);
+        proxyChannel = bootstrap.connect(chiyanConfig.getProxyHost(), chiyanConfig.getProxyPort()).sync().channel();
     }
 
     @Override
@@ -49,11 +53,12 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
         String req = new String(bytes, StandardCharsets.UTF_8);
         String[] split = req.split("\r\n");
-        if (StrUtil.containsAnyIgnoreCase(split[0], "/windowsCommon", "/person", "/netBar")) {
+
+        if (StrUtil.containsAnyIgnoreCase(split[0], chiyanConfig.getPagePrefix().toArray(new String[0]))) {
             if (proxyChannel.isActive()) {
-                req = req.replace("localhost:82", "api.chiyanjiasu.com");
-                System.out.println(req);
-                log.info("channelRead " + proxyChannel);
+                req = req.replace("localhost:" + chiyanConfig.getLocalStartPort(), chiyanConfig.getPageDomain());
+                log.info(req);
+                log.debug("channelRead " + proxyChannel);
                 ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
                 if (proxyChannel.isActive()) {
                     proxyChannel.writeAndFlush(byteBuf1);
@@ -62,7 +67,7 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
             byteBuf.release();
             return;
         }
-        req = req.replace("localhost:82", "api.pre.chiyanjiasu.com");
+        req = req.replace("localhost:" + chiyanConfig.getLocalStartPort(), chiyanConfig.getInterfaceDomain());
         ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
         if (proxyChannel.isActive()) {
             proxyChannel.writeAndFlush(byteBuf1);

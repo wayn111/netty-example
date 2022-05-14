@@ -1,6 +1,6 @@
-package com.wayn.netty.example02.chiyan.handle;
+package com.wayn.netty.example03.chiyan.handle;
 
-import com.wayn.netty.example02.chiyan.NettyChiyanApiForwardApp;
+import com.wayn.netty.example03.chiyan.NettyChiyanApiForwardApp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.Channel;
@@ -33,7 +33,7 @@ public class ProxyChannelHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
-        System.out.println(new String(bytes, StandardCharsets.UTF_8));
+        log.debug(new String(bytes, StandardCharsets.UTF_8));
         localChannel.writeAndFlush(msg);
     }
 
