@@ -1,5 +1,6 @@
 package com.wayn.netty.example02.chiyan.handle;
 
+import cn.hutool.core.util.StrUtil;
 import com.wayn.netty.example02.chiyan.NettyChiyanApiForwardApp;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -12,8 +13,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
@@ -34,7 +33,7 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ProxyChannelHandler proxyChannelHandler = new ProxyChannelHandler(localChannel);
-                        ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                        // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
                         ch.pipeline().addLast(proxyChannelHandler);
                     }
                 });
@@ -50,7 +49,7 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
         String req = new String(bytes, StandardCharsets.UTF_8);
         String[] split = req.split("\r\n");
-        if (split[0].contains("/windowsCommon")) {
+        if (StrUtil.containsAnyIgnoreCase(split[0], "/windowsCommon", "/person", "/netBar")) {
             if (proxyChannel.isActive()) {
                 req = req.replace("localhost:82", "api.chiyanjiasu.com");
                 System.out.println(req);
@@ -64,7 +63,6 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
             return;
         }
         req = req.replace("localhost:82", "api.pre.chiyanjiasu.com");
-        log.info("channelRead " + proxyChannel);
         ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
         if (proxyChannel.isActive()) {
             proxyChannel.writeAndFlush(byteBuf1);

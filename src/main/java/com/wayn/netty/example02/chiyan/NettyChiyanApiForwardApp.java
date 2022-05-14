@@ -1,5 +1,6 @@
 package com.wayn.netty.example02.chiyan;
 
+import com.alibaba.dcm.DnsCacheManipulator;
 import com.wayn.netty.example02.chiyan.handle.LocalChannelHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
@@ -22,7 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 public class NettyChiyanApiForwardApp {
 
     public static void main(String[] args) throws InterruptedException {
-        // DnsCacheManipulator.setDnsCache("api.chiyanjiasu.com", "127.0.0.1");
+        DnsCacheManipulator.setDnsCache("api.chiyanjiasu.com", "119.97.143.63");
+        DnsCacheManipulator.setDnsCache("api.pre.chiyanjiasu.com", "119.97.143.63");
         // 服务端启动，监听3307端口，转发到3306端口
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         NioEventLoopGroup boss = new NioEventLoopGroup();
@@ -35,7 +37,7 @@ public class NettyChiyanApiForwardApp {
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     protected void initChannel(NioSocketChannel ch) {
                         LocalChannelHandler localChannelHandler = new LocalChannelHandler();
-                        ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                        // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
                         ch.pipeline().addLast(localChannelHandler);
                     }
                 });
