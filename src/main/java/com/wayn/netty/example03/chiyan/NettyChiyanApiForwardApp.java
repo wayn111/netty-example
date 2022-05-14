@@ -35,6 +35,7 @@ public class NettyChiyanApiForwardApp {
         // args
         Options options = new Options();
         options.addOption("h", false, "Help");
+        options.addOption("localHost", true, "启动主机IP");
         options.addOption("localPort", true, "启动端口");
         options.addOption("pageDomain", true, "页面域名");
         options.addOption("pagePrefix", true, "页面前缀，多个请用都好分割");
@@ -51,6 +52,7 @@ public class NettyChiyanApiForwardApp {
             return;
         }
         int localPort = Integer.parseInt(cmd.getOptionValue("localPort", "82"));
+        String localhost = cmd.getOptionValue("localHost", "localhost");
         String pageDomain = cmd.getOptionValue("pageDomain", "api.chiyanjiasu.com");
         String pagePrefixs = cmd.getOptionValue("pagePrefix", "/windowsCommon,/person,/netbar");
         List<String> pagePrefix = new ArrayList<>();
@@ -67,11 +69,12 @@ public class NettyChiyanApiForwardApp {
         ChiyanConfig chiyanConfig = new ChiyanConfig();
         chiyanConfig.setPageDomain(pageDomain);
         chiyanConfig.setInterfaceDomain(interfaceDomain);
+        chiyanConfig.setLocalStartHost(localhost);
         chiyanConfig.setLocalStartPort(localPort);
         chiyanConfig.setPagePrefix(pagePrefix);
         chiyanConfig.setProxyHost(proxyHost);
         chiyanConfig.setProxyPort(proxyPort);
-
+        log.info(chiyanConfig.toString());
         // 服务端启动，监听3307端口，转发到3306端口
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         NioEventLoopGroup boss = new NioEventLoopGroup();

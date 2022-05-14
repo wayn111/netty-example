@@ -23,6 +23,8 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
 
     private ChiyanConfig chiyanConfig;
 
+    private static final String regex = "\r\n";
+
     public LocalChannelHandler(ChiyanConfig chiyanConfig) {
         this.chiyanConfig = chiyanConfig;
     }
@@ -52,11 +54,12 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
         ByteBuf byteBuf = (ByteBuf) msg;
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
         String req = new String(bytes, StandardCharsets.UTF_8);
-        String[] split = req.split("\r\n");
+        String[] split = req.split(regex);
 
+        String host = chiyanConfig.getLocalStartHost() + ":" + chiyanConfig.getLocalStartPort();
         if (StrUtil.containsAnyIgnoreCase(split[0], chiyanConfig.getPagePrefix().toArray(new String[0]))) {
             if (proxyChannel.isActive()) {
-                req = req.replace("localhost:" + chiyanConfig.getLocalStartPort(), chiyanConfig.getPageDomain());
+                req = req.replace(host, chiyanConfig.getPageDomain());
                 log.info(req);
                 log.debug("channelRead " + proxyChannel);
                 ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
@@ -67,7 +70,7 @@ public class LocalChannelHandler extends ChannelInboundHandlerAdapter {
             byteBuf.release();
             return;
         }
-        req = req.replace("localhost:" + chiyanConfig.getLocalStartPort(), chiyanConfig.getInterfaceDomain());
+        req = req.replace(host, chiyanConfig.getInterfaceDomain());
         ByteBuf byteBuf1 = Unpooled.copiedBuffer(req.getBytes(StandardCharsets.UTF_8));
         if (proxyChannel.isActive()) {
             proxyChannel.writeAndFlush(byteBuf1);

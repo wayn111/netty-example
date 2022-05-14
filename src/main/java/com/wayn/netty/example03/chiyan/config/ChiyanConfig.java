@@ -12,6 +12,7 @@ public class ChiyanConfig {
      * 本地启动端口
      */
     private Integer localStartPort;
+    private String localStartHost;
 
     /**
      * 页面域名
