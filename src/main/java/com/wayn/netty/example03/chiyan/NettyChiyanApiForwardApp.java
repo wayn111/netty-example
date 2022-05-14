@@ -57,7 +57,8 @@ public class NettyChiyanApiForwardApp {
         String pagePrefixs = cmd.getOptionValue("pagePrefix", "/windowsCommon,/person,/netbar");
         List<String> pagePrefix = new ArrayList<>();
         if (StrUtil.isNotBlank(pagePrefixs)) {
-            pagePrefix = Arrays.asList(pagePrefixs.split(","));
+            pagePrefix = new ArrayList<>(Arrays.asList(pagePrefixs.split(",")));
+            pagePrefix.add(pageDomain);
         }
         String interfaceDomain = cmd.getOptionValue("interfaceDomain", "api.pre.chiyanjiasu.com");
         String proxyHost = cmd.getOptionValue("proxyHost", "119.97.143.63");
