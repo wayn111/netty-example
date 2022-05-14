@@ -1,2 +1,5 @@
 1. 打包命令
 mvn package assembly:single
+
+2. 启动命令
+nohup java -Dname=chiyan-forward -jar  netty-project-1.0-SNAPSHOT-jar-with-dependencies.jar  -localHost 82.157.141.70 -localPort 9000 -interfaceDomain api.pre.chiyanjiasu.com >/dev/null 2>&1  &
