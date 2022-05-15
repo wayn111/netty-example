@@ -36,7 +36,7 @@ public class ProxyChannelHandler extends ChannelInboundHandlerAdapter {
         byte[] bytes = ByteBufUtil.getBytes(byteBuf);
         String resp = new String(bytes);
         if (resp.contains("/captchas/image")) {
-            resp = resp.replace("http://api.chiyanjiasu.com/captchas/image", "/captchas/image");
+            // resp = resp.replace("http://api.chiyanjiasu.com/captchas/image", "/captchas/image");
             log.debug(resp);
             ByteBuf byteBuf1 = Unpooled.copiedBuffer(resp.getBytes(StandardCharsets.UTF_8));
             localChannel.writeAndFlush(byteBuf1);
