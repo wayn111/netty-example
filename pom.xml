@@ -22,7 +22,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId> <!-- Use 'netty-all' for 4.0 or above -->
-            <version>4.1.76.Final</version>
+            <version>4.1.77.Final</version>
         </dependency>
 
         <!--lombok 依赖-->
@@ -64,7 +64,7 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-            <version>5.7.22</version>
+            <version>5.8.3</version>
         </dependency>
 
         <dependency>

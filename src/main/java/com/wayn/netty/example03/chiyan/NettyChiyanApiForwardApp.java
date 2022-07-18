@@ -6,10 +6,7 @@ import com.wayn.netty.example03.chiyan.config.ChiyanConfig;
 import com.wayn.netty.example03.chiyan.handle.LocalChannelHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -93,10 +90,15 @@ public class NettyChiyanApiForwardApp {
                     }
                 });
 
-        serverBootstrap.bind(chiyanConfig.getLocalStartPort()).addListener(future -> {
+        ChannelFuture channelFuture = serverBootstrap.bind(chiyanConfig.getLocalStartPort()).addListener(future -> {
             if (future.isSuccess()) {
                 log.info("server start up on:{}", chiyanConfig.getLocalStartPort());
             }
+        });
+        channelFuture.channel().closeFuture().addListener((ChannelFutureListener) future -> {
+            boss.shutdownGracefully();
+            worker.shutdownGracefully();
+            log.info(future.channel().toString());
         });
     }
 

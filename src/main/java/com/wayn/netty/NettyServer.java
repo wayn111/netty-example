@@ -38,12 +38,10 @@ public class NettyServer {
         // 创建服务端启动器
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         // 指定连接接收线程，处理所有用户连接，转给工作线程
-        NioEventLoopGroup boss = null;
+        final NioEventLoopGroup boss = new NioEventLoopGroup();
         // 指定工作线程，处理用户连接
-        NioEventLoopGroup worker = null;
+        final NioEventLoopGroup worker = new NioEventLoopGroup();
         try {
-            boss = new NioEventLoopGroup();
-            worker = new NioEventLoopGroup();
             serverBootstrap.group(boss, worker); // 绑定线程组
             serverBootstrap.channel(NioServerSocketChannel.class);  // 底层使用nio处理
             serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
@@ -86,7 +84,7 @@ public class NettyServer {
                     // 换行符解码器，指定包与包之间的分隔符是"\n"和"\r\n",避免拆包粘包
                     ch.pipeline().addLast(new LineBasedFrameDecoder(1024));
                     // netty日志记录，打印包信息
-                    ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                    // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
                     // 入站字符解码器
                     ch.pipeline().addLast("decoder", new StringDecoder(CharsetUtil.UTF_8));
                     // 自定义解码器，实现自定义业务逻辑，使用SimpleChannelInboundHandler可以避免ByteBuf的回收问题
@@ -113,21 +111,20 @@ public class NettyServer {
                     ch.pipeline().addLast("encoder", new StringEncoder(CharsetUtil.UTF_8));
                 }
             });
-            ChannelFuture channelFuture = serverBootstrap.bind(port).sync().addListener(future -> {
+            ChannelFuture channelFuture = serverBootstrap.bind(port).addListener(future -> {
                 if (future.isSuccess()) {
                     log.info("server start up on {}", port);
                 }
             });
-            channelFuture.channel().closeFuture().sync();
-        } finally {
-            // 不要忘了在finally中关闭线程组
-            if (boss != null) {
+            channelFuture.channel().closeFuture().addListener((ChannelFutureListener) future -> {
                 boss.shutdownGracefully();
-            }
-            if (worker != null) {
                 worker.shutdownGracefully();
-            }
+                log.info(future.channel().toString());
+            });
+        } finally {
+
         }
+
     }
 
 }

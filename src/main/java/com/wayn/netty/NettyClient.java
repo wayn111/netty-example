@@ -66,7 +66,7 @@ public class NettyClient {
                             }
                         });
                         // netty日志记录，打印包信息
-                        ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                        // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
                         // 自定义解码器，实现自定义业务逻辑，使用ChannelInboundHandlerAdapter时需要手动关闭byteBuf
                         ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
 
@@ -74,7 +74,7 @@ public class NettyClient {
                             @Override
                             public void channelActive(ChannelHandlerContext ctx) {
                                 ByteBuf buffer = ctx.alloc().buffer();
-                                buffer.writeBytes((new Date() + ": hello world!\\r\\n").getBytes(StandardCharsets.UTF_8));
+                                buffer.writeBytes((new Date() + ": hello world!\r\n").getBytes(StandardCharsets.UTF_8));
                                 ctx.writeAndFlush(buffer);
                             }
 
@@ -104,7 +104,7 @@ public class NettyClient {
      */
     private static void connect(Bootstrap bootstrap) {
         try {
-            bootstrap.connect("127.0.0.1", 99).sync().addListener(future -> {
+            bootstrap.connect("127.0.0.1", 99).addListener(future -> {
                 if (future.isSuccess()) {
                     log.info("连接成功!");
                 } else {

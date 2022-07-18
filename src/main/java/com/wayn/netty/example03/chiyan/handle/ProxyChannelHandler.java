@@ -7,6 +7,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
@@ -40,7 +41,7 @@ public class ProxyChannelHandler extends ChannelInboundHandlerAdapter {
             log.debug(resp);
             ByteBuf byteBuf1 = Unpooled.copiedBuffer(resp.getBytes(StandardCharsets.UTF_8));
             localChannel.writeAndFlush(byteBuf1);
-            byteBuf.release();
+            ReferenceCountUtil.release(byteBuf);
             return;
         }
 
