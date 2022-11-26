@@ -2,30 +2,19 @@ package com.wayn.netty.example05;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.timeout.IdleState;
-import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 带有连接重试的tcp客户端
  */
 @Slf4j
-public class NettyClient2 {
+public class LengthFieldBasedNettyClient {
 
     public static void main(String[] args) throws InterruptedException {
         // 创建客户端启动器
@@ -39,7 +28,7 @@ public class NettyClient2 {
                     protected void initChannel(Channel ch) {
                         // netty日志记录，打印包信息
                         ch.pipeline().addLast("frameDecoder",
-                                new LengthFieldBasedFrameDecoder(ByteOrder.LITTLE_ENDIAN, 1024 * 50, 0, 2, 0, 0, true));
+                                new LengthFieldBasedFrameDecoder( 1024 * 50, 0, 2, 0, 0, true));
                         // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
                         // 自定义解码器，实现自定义业务逻辑，使用ChannelInboundHandlerAdapter时需要手动关闭byteBuf
                         ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
@@ -48,10 +37,10 @@ public class NettyClient2 {
                             public void channelActive(ChannelHandlerContext ctx) {
                                 for (int i = 0; i < 1; i++) {
                                     ByteBuf buffer = ctx.alloc().buffer();
-                                    buffer.writeShortLE(18);
-                                    buffer.writeShortLE(3);
-                                    buffer.writeLongLE(889408L);
-                                    buffer.writeLongLE(322337203685397019L);
+                                    buffer.writeShort(18);
+                                    buffer.writeShort(3);
+                                    buffer.writeLong(889408L);
+                                    buffer.writeLong(322337203685397019L);
                                     ctx.channel().writeAndFlush(buffer);
                                 }
                             }
@@ -61,12 +50,12 @@ public class NettyClient2 {
                             public void channelRead(ChannelHandlerContext ctx, Object msg) {
                                 ByteBuf byteBuf = (ByteBuf) msg;
                                 try {
-                                    short length = byteBuf.getShortLE(0);
-                                    long account = byteBuf.getLongLE(2);
-                                    long accToken = byteBuf.getLongLE(10);
-                                    long returnToken = byteBuf.getLongLE(18);
-                                    long status = byteBuf.getShortLE(26);
-                                    long time = byteBuf.getLongLE(28);
+                                    short length = byteBuf.getShort(0);
+                                    long account = byteBuf.getLong(2);
+                                    long accToken = byteBuf.getLong(10);
+                                    long returnToken = byteBuf.getLong(18);
+                                    long status = byteBuf.getShort(26);
+                                    long time = byteBuf.getLong(28);
                                     System.out.println(length);
                                     System.out.println(account);
                                     System.out.println(accToken);
@@ -80,6 +69,10 @@ public class NettyClient2 {
                                 }
                             }
 
+                            @Override
+                            public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                                System.out.println("连接关闭");
+                            }
                         });
                     }
                 });
@@ -95,7 +88,7 @@ public class NettyClient2 {
      */
     private static void connect(Bootstrap bootstrap) {
         try {
-            bootstrap.connect("119.97.143.63", 29001).addListener(future -> {
+            bootstrap.connect("localhost", 99).addListener(future -> {
                 if (future.isSuccess()) {
                     log.info("连接成功!");
                 } else {
