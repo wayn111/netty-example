@@ -2,6 +2,7 @@ package com.wayn.netty.dns;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
@@ -17,8 +18,10 @@ public final class DnsClient {
     private static final String QUERY_DOMAIN = "api.chiyanjiasu.com";
     private static final int DNS_SERVER_PORT = 53;
     private static final String DNS_SERVER_HOST = "114.114.114.114";
+    private static final byte[] QUERY_RESULT = new byte[]{(byte) 192, (byte) 168, 1, 1};
 
-    private DnsClient() { }
+    private DnsClient() {
+    }
 
     private static void handleQueryResp(DatagramDnsResponse msg) {
         if (msg.count(DnsSection.QUESTION) > 0) {
@@ -41,25 +44,41 @@ public final class DnsClient {
         try {
             Bootstrap b = new Bootstrap();
             b.group(group)
-             .channel(NioDatagramChannel.class)
-             .handler(new ChannelInitializer<DatagramChannel>() {
-                 @Override
-                 protected void initChannel(DatagramChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     p.addLast(new DatagramDnsQueryEncoder())
-                     .addLast(new DatagramDnsResponseDecoder())
-                     .addLast(new SimpleChannelInboundHandler<DatagramDnsResponse>() {
+                    .channel(NioDatagramChannel.class)
+                    .handler(new ChannelInitializer<DatagramChannel>() {
                         @Override
-                        protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsResponse msg) {
-                            try {
-                                handleQueryResp(msg);
-                            } finally {
-                                ctx.close();
-                            }
+                        protected void initChannel(DatagramChannel ch) throws Exception {
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast(new DatagramDnsQueryEncoder())
+                                    .addLast(new DatagramDnsResponseDecoder())
+                                    .addLast(new SimpleChannelInboundHandler<DatagramDnsResponse>() {
+                                        @Override
+                                        protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsResponse msg) {
+                                            try {
+                                                handleQueryResp(msg);
+
+                                                // 假数据，域名和ip的对应关系应该放到数据库中
+                                                DatagramDnsResponse response = new DatagramDnsResponse(msg.sender(), msg.recipient(), msg.id());
+                                                try {
+                                                    DnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
+                                                    response.addRecord(DnsSection.QUESTION, dnsQuestion);
+                                                    DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
+                                                            dnsQuestion.name(),
+                                                            DnsRecordType.A, 300, Unpooled.wrappedBuffer(QUERY_RESULT));
+                                                    response.addRecord(DnsSection.ANSWER, queryAnswer);
+                                                    ctx.writeAndFlush(response);
+                                                } catch (Exception e) {
+                                                    e.printStackTrace();
+                                                    System.out.println("异常了：" + e);
+                                                }
+                                            } finally {
+                                                ctx.close();
+                                            }
+                                        }
+                                    })
+                                    .addLast(new DatagramDnsResponseEncoder());
                         }
                     });
-                 }
-             });
             final Channel ch = b.bind(0).sync().channel();
             DnsQuery query = new DatagramDnsQuery(null, addr, 1).setRecord(
                     DnsSection.QUESTION,
