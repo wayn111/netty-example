@@ -8,14 +8,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
-import io.netty.util.NetUtil;
-import io.netty.util.internal.SocketUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 
 @Slf4j
-public final class DnsServer {
+public final class DnsServerClient {
 
     private static final byte[] QUERY_RESULT = new byte[]{(byte) 192, (byte) 168, 1, 1};
     private static final int DNS_SERVER_PORT = 53;

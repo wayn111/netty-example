@@ -57,26 +57,25 @@ public final class DnsClient {
                                             try {
                                                 handleQueryResp(msg);
 
-                                                // 假数据，域名和ip的对应关系应该放到数据库中
-                                                DatagramDnsResponse response = new DatagramDnsResponse(msg.sender(), msg.recipient(), msg.id());
-                                                try {
-                                                    DnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
-                                                    response.addRecord(DnsSection.QUESTION, dnsQuestion);
-                                                    DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
-                                                            dnsQuestion.name(),
-                                                            DnsRecordType.A, 300, Unpooled.wrappedBuffer(QUERY_RESULT));
-                                                    response.addRecord(DnsSection.ANSWER, queryAnswer);
-                                                    ctx.writeAndFlush(response);
-                                                } catch (Exception e) {
-                                                    e.printStackTrace();
-                                                    System.out.println("异常了：" + e);
-                                                }
+                                                // // 假数据，域名和ip的对应关系应该放到数据库中
+                                                // DatagramDnsResponse response = new DatagramDnsResponse(msg.sender(), msg.recipient(), msg.id());
+                                                // try {
+                                                //     DnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
+                                                //     response.addRecord(DnsSection.QUESTION, dnsQuestion);
+                                                //     DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
+                                                //             dnsQuestion.name(),
+                                                //             DnsRecordType.A, 300, Unpooled.wrappedBuffer(QUERY_RESULT));
+                                                //     response.addRecord(DnsSection.ANSWER, queryAnswer);
+                                                //     ctx.writeAndFlush(response);
+                                                // } catch (Exception e) {
+                                                //     e.printStackTrace();
+                                                //     System.out.println("异常了：" + e);
+                                                // }
                                             } finally {
                                                 ctx.close();
                                             }
                                         }
-                                    })
-                                    .addLast(new DatagramDnsResponseEncoder());
+                                    });
                         }
                     });
             final Channel ch = b.bind(0).sync().channel();

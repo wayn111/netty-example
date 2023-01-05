@@ -29,39 +29,40 @@ public final class TcpDnsServer {
 
     public static void main(String[] args) throws Exception {
         ServerBootstrap bootstrap = new ServerBootstrap().group(new NioEventLoopGroup(1),
-                new NioEventLoopGroup())
+                        new NioEventLoopGroup())
                 .channel(NioServerSocketChannel.class)
                 .handler(new LoggingHandler(LogLevel.INFO))
                 .childHandler(new ChannelInitializer<Channel>() {
                     @Override
                     protected void initChannel(Channel ch) throws Exception {
-                        ch.pipeline().addLast(new TcpDnsQueryDecoder(), new TcpDnsResponseEncoder(),
-                                new SimpleChannelInboundHandler<DnsQuery>() {
-                                    @Override
-                                    protected void channelRead0(ChannelHandlerContext ctx,
-                                                                DnsQuery msg) throws Exception {
-                                        DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
-                                        System.out.println("Query domain: " + question);
+                        ch.pipeline()
+                                .addLast(new TcpDnsQueryDecoder(), new TcpDnsResponseEncoder(),
+                                        new SimpleChannelInboundHandler<DnsQuery>() {
+                                            @Override
+                                            protected void channelRead0(ChannelHandlerContext ctx,
+                                                                        DnsQuery msg) throws Exception {
+                                                DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
+                                                System.out.println("Query domain: " + question);
 
-                                        // always return 192.168.1.1
-                                        ctx.writeAndFlush(newResponse(msg, question, 600, QUERY_RESULT));
-                                    }
+                                                // always return 192.168.1.1
+                                                ctx.writeAndFlush(newResponse(msg, question, 600, QUERY_RESULT));
+                                            }
 
-                                    private DefaultDnsResponse newResponse(DnsQuery query,
-                                                                           DnsQuestion question,
-                                                                           long ttl, byte[]... addresses) {
-                                        DefaultDnsResponse response = new DefaultDnsResponse(query.id());
-                                        response.addRecord(DnsSection.QUESTION, question);
+                                            private DefaultDnsResponse newResponse(DnsQuery query,
+                                                                                   DnsQuestion question,
+                                                                                   long ttl, byte[]... addresses) {
+                                                DefaultDnsResponse response = new DefaultDnsResponse(query.id());
+                                                response.addRecord(DnsSection.QUESTION, question);
 
-                                        for (byte[] address : addresses) {
-                                            DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
-                                                    question.name(),
-                                                    DnsRecordType.A, ttl, Unpooled.wrappedBuffer(address));
-                                            response.addRecord(DnsSection.ANSWER, queryAnswer);
-                                        }
-                                        return response;
-                                    }
-                                });
+                                                for (byte[] address : addresses) {
+                                                    DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
+                                                            question.name(),
+                                                            DnsRecordType.A, ttl, Unpooled.wrappedBuffer(address));
+                                                    response.addRecord(DnsSection.ANSWER, queryAnswer);
+                                                }
+                                                return response;
+                                            }
+                                        });
                     }
                 });
         final Channel channel = bootstrap.bind(DNS_SERVER_PORT).channel();
