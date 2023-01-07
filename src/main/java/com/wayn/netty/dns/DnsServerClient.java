@@ -11,7 +11,10 @@ import io.netty.util.NetUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public final class DnsServerClient {
@@ -35,6 +38,7 @@ public final class DnsServerClient {
                                     .addLast(new SimpleChannelInboundHandler<DatagramDnsResponse>() {
                                         @Override
                                         public void channelActive(ChannelHandlerContext ctx) {
+                                            log.info(ctx.channel().toString());
                                         }
 
                                         @Override
@@ -51,16 +55,27 @@ public final class DnsServerClient {
 
                         }
                     });
-            final Channel ch = b.bind(0).sync().channel();
-            System.out.println("连接成功");
-            for (int i = 0; i < 50; i++) {
-                int randomID = new Random().nextInt(60000 - 1000) + 1000;
-                System.out.println(randomID);
-                DnsQuery query = new DatagramDnsQuery(null, new InetSocketAddress(DNS_SERVER_HOST, DNS_SERVER_PORT), randomID).setRecord(
-                        DnsSection.QUESTION,
-                        new DefaultDnsQuestion("toutiao" + i + ".com", DnsRecordType.A));
-                ch.writeAndFlush(query).sync();
+            final Channel ch = b.bind(0).sync().addListener(future -> {
+                log.info("绑定端口成功");
+            }).channel();
+            int count = 50000;
+            List<CompletableFuture<Void>> list = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                int finalI = i;
+                CompletableFuture<Void> f1 = CompletableFuture.runAsync(() -> {
+                    int randomID = new Random().nextInt(60000 - 1000) + 1000;
+                    DnsQuery query = new DatagramDnsQuery(null, new InetSocketAddress(DNS_SERVER_HOST, DNS_SERVER_PORT), randomID).setRecord(
+                            DnsSection.QUESTION,
+                            new DefaultDnsQuestion("baidu.com", DnsRecordType.A));
+                    try {
+                        ch.writeAndFlush(query).sync();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                list.add(f1);
             }
+            CompletableFuture.allOf(list.toArray(new CompletableFuture[0])).join();
             ch.closeFuture().addListener((ChannelFutureListener) future -> {
                 boosGroup.shutdownGracefully();
                 log.info(future.channel().toString());
@@ -73,14 +88,14 @@ public final class DnsServerClient {
     private static void handleQueryResp(DatagramDnsResponse msg) {
         if (msg.count(DnsSection.QUESTION) > 0) {
             DnsQuestion question = msg.recordAt(DnsSection.QUESTION, 0);
-            System.out.printf("name: %s%n", question.name());
+            log.info("name: {}", question.name());
         }
         for (int i = 0, count = msg.count(DnsSection.ANSWER); i < count; i++) {
             DnsRecord record = msg.recordAt(DnsSection.ANSWER, i);
             if (record.type() == DnsRecordType.A) {
                 // just print the IP after query
                 DnsRawRecord raw = (DnsRawRecord) record;
-                System.out.println(NetUtil.bytesToIpAddress(ByteBufUtil.getBytes(raw.content())));
+                log.info(NetUtil.bytesToIpAddress(ByteBufUtil.getBytes(raw.content())));
             }
         }
     }

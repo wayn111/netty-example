@@ -8,6 +8,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
@@ -26,13 +27,12 @@ public final class DnsServer {
     }).collect(toList());
 
     static InetSocketAddress addr = new InetSocketAddress(DNS_SERVER_HOST, 53);
-    static InetSocketAddress sender;
-    static InetSocketAddress recipient;
     static Channel proxyChannel;
     static Channel localChannel;
 
     public static void main(String[] args) throws Exception {
         final NioEventLoopGroup group = new NioEventLoopGroup();
+        final int[] num = {0};
         try {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(group).channel(NioDatagramChannel.class)
@@ -47,12 +47,10 @@ public final class DnsServer {
                                     localChannel = ctx.channel();
                                     // 假数据，域名和ip的对应关系应该放到数据库中
                                     try {
-                                        sender = msg.sender();
-                                        recipient = msg.recipient();
 
                                         DefaultDnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
                                         String name = dnsQuestion.name();
-                                        log.info(name);
+                                        log.info(name + " " + ++num[0]);
 
                                         if (BLACK_LIST_DOMAIN.contains(name)) {
                                             DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
@@ -67,6 +65,8 @@ public final class DnsServer {
                                             localChannel.writeAndFlush(dnsResponse);
                                             return;
                                         }
+                                        int id = msg.id();
+                                        localChannel.attr(AttributeKey.<DatagramDnsQuery>valueOf(String.valueOf(id))).set(msg);
                                         DnsQuery query = new DatagramDnsQuery(null, addr, msg.id()).setRecord(
                                                 DnsSection.QUESTION,
                                                 new DefaultDnsQuestion(name, DnsRecordType.A));
@@ -86,7 +86,7 @@ public final class DnsServer {
                         }
                     }).option(ChannelOption.SO_BROADCAST, true);
 
-            ChannelFuture future = bootstrap.bind(53).sync();
+            ChannelFuture future = bootstrap.bind(553).sync();
             EventLoopGroup proxyGroup = new NioEventLoopGroup();
             Bootstrap b = new Bootstrap();
             b.group(proxyGroup)
@@ -104,8 +104,10 @@ public final class DnsServer {
 
                                         @Override
                                         protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsResponse msg) {
+                                            DatagramDnsQuery dnsQuery = localChannel.attr(AttributeKey.<DatagramDnsQuery>valueOf(String.valueOf(msg.id()))).get();
+
                                             DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
-                                            DatagramDnsResponse dnsResponse = new DatagramDnsResponse(recipient, sender, msg.id());
+                                            DatagramDnsResponse dnsResponse = new DatagramDnsResponse(dnsQuery.recipient(), dnsQuery.sender(), msg.id());
                                             dnsResponse.addRecord(DnsSection.QUESTION, question);
 
                                             for (int i = 0, count = msg.count(DnsSection.ANSWER); i < count; i++) {
