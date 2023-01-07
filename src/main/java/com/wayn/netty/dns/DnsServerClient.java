@@ -2,119 +2,45 @@ package com.wayn.netty.dns;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.NetUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.Random;
 
 @Slf4j
 public final class DnsServerClient {
 
-    private static final byte[] QUERY_RESULT = new byte[]{(byte) 192, (byte) 168, 1, 1};
-    private static final int DNS_SERVER_PORT = 53;
-    private static final String DNS_SERVER_HOST = "114.114.114.114";
-    static InetSocketAddress addr = new InetSocketAddress(DNS_SERVER_HOST, DNS_SERVER_PORT);
-    static InetSocketAddress localAddr = new InetSocketAddress("127.0.0.1", DNS_SERVER_PORT);
-
-    static Channel proxyChannel;
-    static Channel localChannel;
+    private static final int DNS_SERVER_PORT = 553;
+    private static final String DNS_SERVER_HOST = "127.0.0.1";
 
     public static void main(String[] args) throws Exception {
-        final NioEventLoopGroup group = new NioEventLoopGroup();
         try {
-            Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(group).channel(NioDatagramChannel.class)
-                    .handler(new ChannelInitializer<NioDatagramChannel>() {
-                        @Override
-                        protected void initChannel(NioDatagramChannel nioDatagramChannel) {
-                            nioDatagramChannel.pipeline().addLast(new DatagramDnsQueryDecoder());
-                            nioDatagramChannel.pipeline().addLast(new SimpleChannelInboundHandler<DatagramDnsQuery>() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx) {
-                                    localChannel = ctx.channel();
-                                }
-
-                                @Override
-                                protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery msg) {
-                                    // 假数据，域名和ip的对应关系应该放到数据库中
-                                    try {
-
-                                        DefaultDnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
-                                        String name = dnsQuestion.name();
-                                        DnsQuery query = new DatagramDnsQuery(null, addr, 1).setRecord(
-                                                DnsSection.QUESTION,
-                                                new DefaultDnsQuestion(name, DnsRecordType.A));
-                                        proxyChannel.writeAndFlush(query);
-
-                                        // DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
-                                        // DatagramDnsResponse dnsResponse = new DatagramDnsResponse(msg.recipient(), msg.sender(), msg.id());
-                                        // dnsResponse.addRecord(DnsSection.QUESTION, question);
-                                        //
-                                        // for (int i = 0, count = msg.count(DnsSection.ANSWER); i < count; i++) {
-                                        //     DnsRecord record = msg.recordAt(DnsSection.ANSWER, i);
-                                        //     if (record.type() == DnsRecordType.A) {
-                                        //         // just print the IP after query
-                                        //         DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
-                                        //                 question.name(),
-                                        //                 DnsRecordType.A, 600, Unpooled.wrappedBuffer(new byte[]{(byte) 192, (byte) 168, 1, 1}));
-                                        //         dnsResponse.addRecord(DnsSection.ANSWER, queryAnswer);
-                                        //     }
-                                        // }
-                                        // ctx.channel().writeAndFlush(dnsResponse);
-                                    } catch (Exception e) {
-                                        log.error(e.getMessage(), e);
-                                    }
-                                }
-
-                                @Override
-                                public void exceptionCaught(ChannelHandlerContext ctx, Throwable e) {
-                                    log.error(e.getMessage(), e);
-                                }
-                            });
-                            nioDatagramChannel.pipeline().addLast(new DatagramDnsResponseEncoder());
-
-                        }
-                    }).option(ChannelOption.SO_BROADCAST, true);
-
-            ChannelFuture future = bootstrap.bind(553).sync();
-            EventLoopGroup proxyGroup = new NioEventLoopGroup();
+            EventLoopGroup boosGroup = new NioEventLoopGroup();
             Bootstrap b = new Bootstrap();
-            b.group(proxyGroup)
+            b.group(boosGroup)
                     .channel(NioDatagramChannel.class)
                     .handler(new ChannelInitializer<DatagramChannel>() {
                         @Override
-                        protected void initChannel(DatagramChannel ch) throws Exception {
+                        protected void initChannel(DatagramChannel ch) {
                             ChannelPipeline p = ch.pipeline();
+                            // p.addLast(new LoggingHandler(LogLevel.INFO));
                             p.addLast(new DatagramDnsQueryEncoder())
                                     .addLast(new DatagramDnsResponseDecoder())
                                     .addLast(new SimpleChannelInboundHandler<DatagramDnsResponse>() {
                                         @Override
-                                        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                                        public void channelActive(ChannelHandlerContext ctx) {
                                         }
 
                                         @Override
                                         protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsResponse msg) {
-                                            DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
-                                            DatagramDnsResponse dnsResponse = new DatagramDnsResponse(msg.sender(), msg.recipient(), msg.id());
-                                            dnsResponse.addRecord(DnsSection.QUESTION, question);
+                                            handleQueryResp(msg);
 
-                                            for (int i = 0, count = msg.count(DnsSection.ANSWER); i < count; i++) {
-                                                DnsRecord record = msg.recordAt(DnsSection.ANSWER, i);
-                                                if (record.type() == DnsRecordType.A) {
-                                                    // just print the IP after query
-                                                    DnsRawRecord raw = (DnsRawRecord) record;
-                                                    DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
-                                                            question.name(),
-                                                            DnsRecordType.A, 600, Unpooled.wrappedBuffer(ByteBufUtil.getBytes(raw.content())));
-                                                    dnsResponse.addRecord(DnsSection.ANSWER, queryAnswer);
-                                                }
-                                            }
-                                            localChannel.writeAndFlush(dnsResponse);
                                         }
 
                                         @Override
@@ -125,10 +51,37 @@ public final class DnsServerClient {
 
                         }
                     });
-            proxyChannel = b.bind(0).sync().channel();
-            future.channel().closeFuture().sync();
+            final Channel ch = b.bind(0).sync().channel();
+            System.out.println("连接成功");
+            for (int i = 0; i < 50; i++) {
+                int randomID = new Random().nextInt(60000 - 1000) + 1000;
+                System.out.println(randomID);
+                DnsQuery query = new DatagramDnsQuery(null, new InetSocketAddress(DNS_SERVER_HOST, DNS_SERVER_PORT), randomID).setRecord(
+                        DnsSection.QUESTION,
+                        new DefaultDnsQuestion("toutiao" + i + ".com", DnsRecordType.A));
+                ch.writeAndFlush(query).sync();
+            }
+            ch.closeFuture().addListener((ChannelFutureListener) future -> {
+                boosGroup.shutdownGracefully();
+                log.info(future.channel().toString());
+            });
         } catch (InterruptedException e) {
             log.error(e.getMessage(), e);
+        }
+    }
+
+    private static void handleQueryResp(DatagramDnsResponse msg) {
+        if (msg.count(DnsSection.QUESTION) > 0) {
+            DnsQuestion question = msg.recordAt(DnsSection.QUESTION, 0);
+            System.out.printf("name: %s%n", question.name());
+        }
+        for (int i = 0, count = msg.count(DnsSection.ANSWER); i < count; i++) {
+            DnsRecord record = msg.recordAt(DnsSection.ANSWER, i);
+            if (record.type() == DnsRecordType.A) {
+                // just print the IP after query
+                DnsRawRecord raw = (DnsRawRecord) record;
+                System.out.println(NetUtil.bytesToIpAddress(ByteBufUtil.getBytes(raw.content())));
+            }
         }
     }
 }
