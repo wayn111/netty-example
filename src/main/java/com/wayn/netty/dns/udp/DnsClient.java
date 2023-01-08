@@ -1,4 +1,4 @@
-package com.wayn.netty.dns;
+package com.wayn.netty.dns.udp;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufUtil;
@@ -17,10 +17,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public final class DnsServerClient {
-
-    private static final int DNS_SERVER_PORT = 553;
-    private static final String DNS_SERVER_HOST = "127.0.0.1";
+public final class DnsClient {
 
     public static void main(String[] args) throws Exception {
         try {
@@ -61,12 +58,11 @@ public final class DnsServerClient {
             int count = 50000;
             List<CompletableFuture<Void>> list = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                int finalI = i;
                 CompletableFuture<Void> f1 = CompletableFuture.runAsync(() -> {
                     int randomID = new Random().nextInt(60000 - 1000) + 1000;
-                    DnsQuery query = new DatagramDnsQuery(null, new InetSocketAddress(DNS_SERVER_HOST, DNS_SERVER_PORT), randomID).setRecord(
+                    DnsQuery query = new DatagramDnsQuery(null, new InetSocketAddress("127.0.0.1`", 553), randomID).setRecord(
                             DnsSection.QUESTION,
-                            new DefaultDnsQuestion("baidu.com", DnsRecordType.A));
+                            new DefaultDnsQuestion("google.com", DnsRecordType.A));
                     try {
                         ch.writeAndFlush(query).sync();
                     } catch (InterruptedException e) {

@@ -1,5 +1,6 @@
-package com.wayn.netty.dns;
+package com.wayn.netty.dns.udp;
 
+import cn.hutool.core.util.StrUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -11,25 +12,32 @@ import io.netty.handler.codec.dns.*;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
-import static java.util.stream.Collectors.toList;
-
 @Slf4j
-public final class DnsServer2 {
-
-    private static final List<String> BLACK_LIST_DOMAIN = Arrays.stream(new String[]{
-            "mgr.chiyanjiasu.com."
-    }).collect(toList());
-
+public final class DnsServer {
+    private static final List<String> BLACK_LIST_DOMAIN = new ArrayList<>();
+    static {
+        String s;
+        try (InputStream is = DnsServer.class.getClassLoader().getResourceAsStream("black_list.txt");
+             BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+            while (StrUtil.isNotBlank(s = br.readLine())) {
+                BLACK_LIST_DOMAIN.add(s);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
 
     public static void main(String[] args) throws Exception {
-        ProxyUdp2 proxyUdp2 = new ProxyUdp2();
-        proxyUdp2.init();
+        ProxyUdp proxyUdp = new ProxyUdp();
+        proxyUdp.init();
         final int[] num = {0};
-
         final NioEventLoopGroup group = new NioEventLoopGroup();
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group).channel(NioDatagramChannel.class)
@@ -41,32 +49,35 @@ public final class DnsServer2 {
 
                             @Override
                             protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery msg) {
-                                // 假数据，域名和ip的对应关系应该放到数据库中
                                 try {
                                     DefaultDnsQuestion dnsQuestion = msg.recordAt(DnsSection.QUESTION);
                                     String name = dnsQuestion.name();
                                     log.info(name + ++num[0]);
-
                                     Channel channel = ctx.channel();
                                     int id = msg.id();
                                     channel.attr(AttributeKey.<DatagramDnsQuery>valueOf(String.valueOf(id))).set(msg);
                                     if (BLACK_LIST_DOMAIN.contains(name)) {
                                         DnsQuestion question = msg.recordAt(DnsSection.QUESTION);
-                                        DatagramDnsResponse dnsResponse = new DatagramDnsResponse(msg.recipient(), msg.sender(), id);
-                                        dnsResponse.addRecord(DnsSection.QUESTION, question);
-
-                                        // just print the IP after query
-                                        DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
-                                                question.name(),
-                                                DnsRecordType.A, 600, Unpooled.wrappedBuffer(new byte[]{(byte) 192, (byte) 168, 1, 1}));
-                                        dnsResponse.addRecord(DnsSection.ANSWER, queryAnswer);
+                                        DatagramDnsResponse dnsResponse = getDatagramDnsResponse(msg, id, question);
                                         channel.writeAndFlush(dnsResponse);
                                         return;
                                     }
-                                    proxyUdp2.send(name, msg.id(), channel);
+                                    proxyUdp.send(name, msg.id(), channel);
                                 } catch (Exception e) {
                                     log.error(e.getMessage(), e);
                                 }
+                            }
+
+                            private DatagramDnsResponse getDatagramDnsResponse(DatagramDnsQuery msg, int id, DnsQuestion question) {
+                                DatagramDnsResponse dnsResponse = new DatagramDnsResponse(msg.recipient(), msg.sender(), id);
+                                dnsResponse.addRecord(DnsSection.QUESTION, question);
+
+                                // just print the IP after query
+                                DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(
+                                        question.name(),
+                                        DnsRecordType.A, 600, Unpooled.wrappedBuffer(new byte[]{(byte) 192, (byte) 168, 1, 1}));
+                                dnsResponse.addRecord(DnsSection.ANSWER, queryAnswer);
+                                return dnsResponse;
                             }
 
                             @Override
@@ -79,7 +90,7 @@ public final class DnsServer2 {
                     }
                 }).option(ChannelOption.SO_BROADCAST, true);
 
-        int port = 53;
+        int port = 553;
         ChannelFuture future = bootstrap.bind(port).addListener(future1 -> {
             log.info("server listening port:{}", port);
         });
@@ -93,11 +104,9 @@ public final class DnsServer2 {
 }
 
 @Slf4j
-class ProxyUdp2 {
-
+class ProxyUdp {
     private Channel localChannel;
     private Channel proxyChannel;
-
 
     public void init() throws InterruptedException {
         EventLoopGroup proxyGroup = new NioEventLoopGroup();
@@ -158,5 +167,4 @@ class ProxyUdp2 {
                 new DefaultDnsQuestion(domain, DnsRecordType.A));
         this.proxyChannel.writeAndFlush(query);
     }
-
 }
